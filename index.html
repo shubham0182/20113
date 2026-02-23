@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Gemini Clone</title>
+
+<link href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500&display=swap" rel="stylesheet">
+
+<style>
+:root {
+    --bg-dark: #131314;
+    --sidebar-bg: #1e1f20;
+    --text-main: #e3e3e3;
+    --text-sub: #b4b4b4;
+    --gemini-gradient: linear-gradient(90deg, #4285f4, #9b72cb, #d96570);
+    --shimmer-bg: linear-gradient(90deg, #1e1f20 25%, #2a2b2d 50%, #1e1f20 75%);
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+    background: var(--bg-dark);
+    color: var(--text-main);
+    font-family: 'Google Sans', sans-serif;
+    height: 100vh;
+    overflow: hidden;
+}
+
+.app-container {
+    display: flex;
+    height: 100%;
+}
+
+.sidebar {
+    width: 260px;
+    background: var(--sidebar-bg);
+    padding: 20px;
+    border-right: 1px solid #333;
+}
+
+.new-chat-btn {
+    width: 100%;
+    padding: 12px;
+    border-radius: 25px;
+    background: #1a1a1c;
+    border: 1px solid #444;
+    color: var(--text-sub);
+    cursor: pointer;
+}
+
+.chat-area {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+header {
+    width: 100%;
+    padding: 16px 24px;
+    font-size: 1.2rem;
+}
+
+header span {
+    color: var(--text-sub);
+    font-size: 0.9rem;
+}
+
+.chat-viewport {
+    flex: 1;
+    width: 100%;
+    max-width: 840px;
+    padding: 30px 20px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 28px;
+}
+
+.message {
+    display: flex;
+    gap: 15px;
+}
+
+.user-message {
+    justify-content: flex-end;
+}
+
+.user-message .content {
+    background: #2e2f30;
+    padding: 12px 18px;
+    border-radius: 22px;
+    max-width: 80%;
+}
+
+.ai-icon {
+    width: 32px;
+    height: 32px;
+    background: var(--gemini-gradient);
+    border-radius: 50%;
+}
+
+.ai-content {
+    flex: 1;
+    line-height: 1.6;
+}
+
+.shimmer {
+    height: 14px;
+    margin-bottom: 8px;
+    background: var(--shimmer-bg);
+    background-size: 200% 100%;
+    animation: shimmer 1.4s infinite linear;
+    border-radius: 4px;
+}
+
+@keyframes shimmer {
+    from { background-position: 200% 0; }
+    to { background-position: -200% 0; }
+}
+
+.greeting {
+    margin-top: 10vh;
+}
+
+.gradient-text {
+    font-size: 3.2rem;
+    background: var(--gemini-gradient);
+    color: transparent;
+background: linear-gradient(90deg, #ff8a00, #e52e71);
+-webkit-background-clip: text; /* for Chrome, Safari */
+background-clip: text;         /* standard property */
+
+    -webkit-text-fill-color: transparent;
+}
+
+.input-section {
+    width: 100%;
+    max-width: 840px;
+    padding: 20px;
+}
+
+.input-pill {
+    display: flex;
+    gap: 12px;
+    background: var(--sidebar-bg);
+    padding: 12px 18px;
+    border-radius: 30px;
+}
+
+textarea {
+    flex: 1;
+    background: transparent;
+    border: none;
+    color: white;
+    resize: none;
+    outline: none;
+    font-size: 16px;
+}
+
+button {
+    background: none;
+    border: none;
+    color: var(--text-sub);
+    cursor: pointer;
+}
+</style>
+</head>
+
+<body>
+
+<div class="app-container">
+    <aside class="sidebar">
+        <button class="new-chat-btn" onclick="location.reload()">+ New Chat</button>
+    </aside>
+
+    <main class="chat-area">
+        <header>Gemini <span>3 Flash</span></header>
+
+        <section id="chat-viewport" class="chat-viewport">
+            <div id="greeting" class="greeting">
+                <h1 class="gradient-text">Hello, Friend</h1>
+                <p style="color: var(--text-sub)">How can I help you today?</p>
+            </div>
+        </section>
+
+        <footer class="input-section">
+            <div class="input-pill">
+                <textarea id="user-input" rows="1" placeholder="Enter a prompt..."></textarea>
+                <button id="send-btn">➤</button>
+            </div>
+        </footer>
+    </main>
+</div>
+
+<script>
+const userInput = document.getElementById("user-input");
+const sendBtn = document.getElementById("send-btn");
+const chatViewport = document.getElementById("chat-viewport");
+
+userInput.addEventListener("input", () => {
+    userInput.style.height = "auto";
+    userInput.style.height = userInput.scrollHeight + "px";
+});
+
+sendBtn.addEventListener("click", sendMessage);
+
+userInput.addEventListener("keydown", e => {
+    if (e.key === "Enter" && !e.shiftKey) {
+        e.preventDefault();
+        sendMessage();
+    }
+});
+
+async function sendMessage() {
+    const text = userInput.value.trim();
+    if (!text) return;
+
+    document.getElementById("greeting")?.remove();
+
+    addUserMessage(text);
+    userInput.value = "";
+    userInput.style.height = "auto";
+
+    const aiBox = addAIPlaceholder();
+
+    try {
+        const res = await fetch("http://127.0.0.1:8000/chat", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ message: text })
+        });
+
+        const raw = await res.text();
+        const data = raw ? JSON.parse(raw) : {};
+
+        if (!res.ok) throw new Error(data.reply || "Server error");
+
+        aiBox.innerHTML = formatText(data.reply);
+
+    } catch (err) {
+        aiBox.innerHTML = `<span style="color:#ff6b6b">⚠️ ${err.message}</span>`;
+    }
+
+    chatViewport.scrollTop = chatViewport.scrollHeight;
+}
+
+function addUserMessage(text) {
+    const div = document.createElement("div");
+    div.className = "message user-message";
+    div.innerHTML = `<div class="content">${text}</div>`;
+    chatViewport.appendChild(div);
+}
+
+function addAIPlaceholder() {
+    const div = document.createElement("div");
+    div.className = "message ai-message";
+    div.innerHTML = `
+        <div class="ai-icon"></div>
+        <div class="ai-content">
+            <div class="shimmer" style="width:80%"></div>
+            <div class="shimmer" style="width:60%"></div>
+        </div>`;
+    chatViewport.appendChild(div);
+    return div.querySelector(".ai-content");
+}
+
+function formatText(text) {
+    return text
+        .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")
+        .replace(/\n/g, "<br>");
+}
+</script>
+
+</body>
+</html>
